@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
@@ -31,6 +32,8 @@ class MyLinearRegression:
         self.add_bias = add_bias
         self.verbose = verbose
         self.max_error = max_error
+
+        self.error_history = []
     
     def initialize_weights(self, n_features):
         ''' weights initialization function '''
@@ -38,14 +41,14 @@ class MyLinearRegression:
             ################
 
             # YOUR CODE HERE
-            weights = # TODO
+            weights = np.random.randn(n_features)
 
             ################
         elif self.weights_init == 'zeros':
             ################
 
             # YOUR CODE HERE
-            weights = # TODO
+            weights = np.zeros(n_features)
 
             ################
         else:
@@ -64,7 +67,7 @@ class MyLinearRegression:
         ################
 
         # YOUR CODE HERE
-        loss = None
+        loss = np.mean((target - pred) ** 2)
 
         ################
         return loss
@@ -74,26 +77,43 @@ class MyLinearRegression:
             ################
 
             # YOUR CODE HERE
+            x = np.hstack([np.ones((x.shape[0], 1)), x])
 
             ################
 
         self.weights = self.initialize_weights(x.shape[1])
+
+        y = y.flatten()
 
         for i in range(self.num_iterations):
             ################
 
             # YOUR CODE HERE
             # step 1: calculate current_loss value
+            y_pred = self.predict(x).flatten()
+            current_loss = self.cost(y, y_pred)
 
             # step 2: calculate gradient value
+            gradient = (2 / x.shape[0]) * x.T @ (y_pred - y)
 
             # step 3: update weights using learning rate and gradient value
+            self.weights -= self.learning_rate * gradient
 
             # step 4: calculate new_loss value
+            y_pred_new = self.predict(x)
+            new_loss = self.cost(y, y_pred_new)
 
             # step 5: if new_loss and current_loss difference is greater than max_error -> break;
             #         if iteration is greater than max_iterations -> break
-        
+            if self.verbose:
+                print(f"Iteration {i+1}, Loss: {new_loss}")
+            
+            self.error_history.append(new_loss)
+
+            if abs(new_loss - current_loss) < self.max_error:
+                if self.verbose:
+                    print(f"Converged after {i+1} iterations.")
+                break
             ################
     
     def predict(self, x):
@@ -101,7 +121,14 @@ class MyLinearRegression:
         ################
 
         # YOUR CODE HERE
-        y_hat = # TODO
+        # print(f"x: {x.shape}, self.weights: {self.weights.shape}")
+        if self.add_bias and x.shape[1] < self.weights.shape[0]:
+            ################
+
+            # YOUR CODE HERE
+            x = np.hstack([np.ones((x.shape[0], 1)), x])
+
+        y_hat = x @ self.weights
 
         ################
         return y_hat
@@ -110,7 +137,10 @@ class MyLinearRegression:
 
 def normal_equation(X, y):
     ''' TODO: implement normal equation '''
-    return None
+
+    weights = np.linalg.pinv(X.T @ X) @ X.T @ y
+
+    return weights
 
 
 
@@ -122,9 +152,13 @@ if __name__ == "__main__":
     # normalization of input data
     x /= np.max(x)
 
+    img_dir = "img/"
+    if not os.path.exists(img_dir):
+        os.mkdir(img_dir)
+
     plt.title('Data samples')
     plt.scatter(x, y)
-    plt.savefig('data_samples.png')
+    plt.savefig(img_dir + 'data_samples.png')
 
 
     # Sklearn linear regression model
@@ -134,19 +168,22 @@ if __name__ == "__main__":
 
     plt.title('Data samples with sklearn model')
     plt.scatter(x, y)
-    plt.plot(x, y_hat_sklearn, color='r')
-    plt.savefig('sklearn_model.png')
+    plt.plot(x, y_hat_sklearn, color='g')
+    plt.savefig(img_dir + 'sklearn_model.png')
     print('Sklearn MSE: ', mean_squared_error(y, y_hat_sklearn))
 
     # Your linear regression model
-    my_model = MyLinearRegression()
+    my_model = MyLinearRegression(
+        verbose=False,
+        learning_rate=0.0002,
+        num_iterations=20_000)
     my_model.fit(x, y)
     y_hat = my_model.predict(x)
 
     plt.title('Data samples with my model')
     plt.scatter(x, y)
     plt.plot(x, y_hat, color='r')
-    plt.savefig('my_model.png')
+    plt.savefig(img_dir + 'my_model.png')
     print('My MSE: ', mean_squared_error(y, y_hat))
 
     # Normal equation
@@ -155,6 +192,12 @@ if __name__ == "__main__":
 
     plt.title('Data samples with normal equation')
     plt.scatter(x, y)
-    plt.plot(x, y_hat_normal, color='r')
-    plt.savefig('normal_equation.png')
+    plt.plot(x, y_hat_normal, color='b')
+    plt.savefig(img_dir + 'normal_equation.png')
     print('Normal equation MSE: ', mean_squared_error(y, y_hat_normal))
+
+    plt.close()
+
+    plt.title('Error')
+    plt.plot(np.arange(my_model.num_iterations), my_model.error_history, color='b')
+    plt.savefig(img_dir + 'error_history')
